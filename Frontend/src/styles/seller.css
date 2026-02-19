@@ -1,0 +1,105 @@
+/* src/styles/seller.css */
+.seller-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+  background: #f7f7f7;
+  transition: grid-template-columns 0.25s ease;
+}
+
+.seller-layout.collapsed {
+  grid-template-columns: 64px 1fr;
+}
+
+.seller-sidebar {
+  background: #ff5252;
+  color: #fff;
+  padding: 16px;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hamburger {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #fff;
+  margin: 3px 0;
+  border-radius: 2px;
+}
+
+.sidebar-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.sidebar-nav {
+  margin-top: 20px;
+}
+.sidebar-link {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #fff;
+  text-decoration: none;
+  margin-bottom: 8px;
+  transition: background 0.2s ease;
+  font-weight: 600;
+}
+.sidebar-link:hover {
+  background: #e53935;
+}
+.sidebar-link.active {
+  background: #fff;
+  color: #ff5252;
+}
+
+.seller-main {
+  padding: 28px;
+}
+
+.logout-btn {
+  background: none;
+  border: none;
+  padding: 10px 12px;
+  text-align: left;
+  width: 100%;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.logout-btn:hover {
+  background: #e53935;
+}
+
+.seller-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+}
+
+.app-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ff5252;
+}
+
