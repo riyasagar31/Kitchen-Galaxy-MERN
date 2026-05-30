@@ -16,10 +16,10 @@ const brandSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active'
   },
-  //   logo: {
-  //     type: String,
-  //     default: null
-  //   }
+  logo: {
+    type: String,
+    default: null
+  }
 }, { timestamps: true });
 
 export default mongoose.model('Brand', brandSchema);

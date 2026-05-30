@@ -71,6 +71,21 @@ const userSchema = new mongoose.Schema({
   shopDescription: { type: String, trim: true },
   experience: { type: String, trim: true }, // e.g., "2 years"
   platform: { type: String, enum: ['shop', 'online', 'both'], default: 'shop' },
+
+  // OTP Authentication
+  otp: { type: String, default: null },
+  otpExpires: { type: Date, default: null },
+
+  // --- NEW: Addresses Array ---
+  addresses: [{
+    name: { type: String, required: true, trim: true },
+    phone: { type: String, required: true, trim: true },
+    street: { type: String, required: true, trim: true },
+    city: { type: String, required: true, trim: true },
+    state: { type: String, required: true, trim: true },
+    pincode: { type: String, required: true, trim: true },
+    isDefault: { type: Boolean, default: false }
+  }]
 }, { timestamps: true });
 
 // Updated safe serializer
@@ -89,7 +104,8 @@ userSchema.methods.toSafeJSON = function () {
     shopName: this.shopName,
     shopDescription: this.shopDescription,
     experience: this.experience,
-    platform: this.platform
+    platform: this.platform,
+    addresses: this.addresses
   };
 };
 

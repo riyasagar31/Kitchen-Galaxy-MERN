@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { FiEdit2, FiTrash2, FiPlus, FiEye, FiSearch, FiChevronLeft, FiChevronRight, FiArrowLeft } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -165,10 +165,10 @@ export default function AdminSubCategories() {
                 </div>
             </div>
 
-            {/* Form Section */}
-            {showForm && (
+            {/* Form Section (Create Only) */}
+            {showForm && !isEditing && (
                 <div className="mb-8 bg-gray-50 p-5 rounded-xl border border-gray-200 animate-in fade-in slide-in-from-top-4 duration-300">
-                    <div className="font-bold text-gray-700 mb-4 uppercase tracking-wider text-xs">{isEditing ? 'Edit SubCategory' : 'Create SubCategory'}</div>
+                    <div className="font-bold text-gray-700 mb-4 uppercase tracking-wider text-xs">Create SubCategory</div>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">SubCategory Name</label>
@@ -202,7 +202,7 @@ export default function AdminSubCategories() {
                             className="px-6 py-2.5 rounded-lg text-sm font-bold text-white shadow-md hover:brightness-110 transition-all"
                             onClick={handleSubmit}
                         >
-                            {isEditing ? 'Save Changes' : 'Create SubCategory'}
+                            Create SubCategory
                         </button>
                     </div>
                 </div>
@@ -222,17 +222,86 @@ export default function AdminSubCategories() {
                         {paginatedSubs.length === 0 ? (
                             <tr><td colSpan="3" className="px-6 py-10 text-center text-gray-400 italic">No subcategories found.</td></tr>
                         ) : paginatedSubs.map(sub => (
-                            <tr key={sub._id} className="hover:bg-gray-50/50 transition-colors">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{sub.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <span className="bg-gray-100 px-2.5 py-1 rounded-full text-xs font-semibold">{sub.category?.name || 'Uncategorized'}</span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right space-x-3">
-                                    <button style={{ color: THEME_COLOR }} className="p-2 rounded-full hover:bg-red-50 transition-all" onClick={() => handleToggleView(sub)}><FiEye size={18} /></button>
-                                    <button style={{ color: THEME_COLOR }} className="p-2 rounded-full hover:bg-red-50 transition-all" onClick={() => openEdit(sub)}><FiEdit2 size={18} /></button>
-                                    <button style={{ color: THEME_COLOR }} className="p-2 rounded-full hover:bg-red-50 transition-all" onClick={() => handleDelete(sub._id)}><FiTrash2 size={18} /></button>
-                                </td>
-                            </tr>
+                            <React.Fragment key={sub._id}>
+                                <tr className="hover:bg-gray-50/50 transition-colors">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{sub.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <span className="bg-gray-100 px-2.5 py-1 rounded-full text-xs font-semibold">{sub.category?.name || 'Uncategorized'}</span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right space-x-3">
+                                        <button style={{ color: THEME_COLOR }} className="p-2 rounded-full hover:bg-red-50 transition-all" onClick={() => handleToggleView(sub)}><FiEye size={18} /></button>
+                                        <button style={{ color: THEME_COLOR }} className="p-2 rounded-full hover:bg-red-50 transition-all" onClick={() => openEdit(sub)}><FiEdit2 size={18} /></button>
+                                        <button style={{ color: THEME_COLOR }} className="p-2 rounded-full hover:bg-red-50 transition-all" onClick={() => handleDelete(sub._id)}><FiTrash2 size={18} /></button>
+                                    </td>
+                                </tr>
+                                {/* Inline Edit Form */}
+                                {isEditing === sub._id && (
+                                    <tr>
+                                        <td colSpan="3" className="px-6 py-4 bg-gray-50/30">
+                                            <div className="p-5 bg-white border-2 rounded-xl shadow-lg animate-in zoom-in-95 duration-200" style={{ borderColor: THEME_COLOR }}>
+                                                <div className="font-bold text-gray-700 mb-4 uppercase tracking-wider text-xs">Edit SubCategory</div>
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">SubCategory Name</label>
+                                                        <input
+                                                            className="w-full bg-white border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 transition-all"
+                                                            style={{ '--tw-ring-color': THEME_COLOR }}
+                                                            value={form.name}
+                                                            onChange={e => setForm({ ...form, name: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Parent Category</label>
+                                                        <select
+                                                            className="w-full bg-white border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 transition-all"
+                                                            style={{ '--tw-ring-color': THEME_COLOR }}
+                                                            value={form.categoryId}
+                                                            onChange={e => setForm({ ...form, categoryId: e.target.value })}
+                                                        >
+                                                            {categories.map(c => (
+                                                                <option key={c._id} value={c._id}>{c.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-6 flex justify-end space-x-3">
+                                                    <button className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800" onClick={resetForm}>Cancel</button>
+                                                    <button
+                                                        style={{ backgroundColor: THEME_COLOR }}
+                                                        className="px-6 py-2.5 rounded-lg text-sm font-bold text-white shadow-md hover:brightness-110 transition-all"
+                                                        onClick={handleSubmit}
+                                                    >
+                                                        Save Changes
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                                {/* Inline View Details */}
+                                {viewedSub?._id === sub._id && (
+                                    <tr>
+                                        <td colSpan="3" className="px-6 py-4 bg-gray-50/30">
+                                            <div className="p-6 rounded-xl border-l-4 shadow-md bg-white animate-in slide-in-from-left-2 duration-300"
+                                                style={{ borderColor: THEME_COLOR }}>
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">SubCategory Details</span>
+                                                        <h4 className="text-2xl font-bold mt-1" style={{ color: THEME_COLOR }}>{sub.name}</h4>
+                                                        <div className="mt-3 flex items-center space-x-2">
+                                                            <span className="text-xs font-bold text-gray-400 uppercase">Belongs to:</span>
+                                                            <span className="text-sm font-semibold text-gray-700">{sub.category?.name || 'N/A'}</span>
+                                                        </div>
+                                                    </div>
+                                                    <button className="p-1 hover:rotate-90 transition-transform duration-300" style={{ color: THEME_COLOR }} onClick={() => setViewedSub(null)}>
+                                                        <FiPlus className="rotate-45" size={24} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </React.Fragment>
                         ))}
                     </tbody>
                 </table>
@@ -245,7 +314,7 @@ export default function AdminSubCategories() {
                         Showing {Math.min(filteredSubCategories.length, (currentPage - 1) * itemsPerPage + 1)} to {Math.min(filteredSubCategories.length, currentPage * itemsPerPage)} of {filteredSubCategories.length} items
                     </p>
                     <div className="flex space-x-2">
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
                             className="p-2 rounded-md border border-gray-300 disabled:opacity-50 hover:bg-gray-50"
@@ -255,32 +324,12 @@ export default function AdminSubCategories() {
                         <div className="flex items-center px-4 text-sm font-medium">
                             Page {currentPage} of {totalPages}
                         </div>
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
                             className="p-2 rounded-md border border-gray-300 disabled:opacity-50 hover:bg-gray-50"
                         >
                             <FiChevronRight />
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* View Details Card */}
-            {viewedSub && (
-                <div className="mt-6 p-6 rounded-xl border-l-4 shadow-sm animate-in slide-in-from-left-2 duration-300" 
-                     style={{ backgroundColor: '#fff9f9', borderColor: THEME_COLOR }}>
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">SubCategory Details</span>
-                            <h4 className="text-2xl font-bold mt-1" style={{ color: THEME_COLOR }}>{viewedSub.name}</h4>
-                            <div className="mt-3 flex items-center space-x-2">
-                                <span className="text-xs font-bold text-gray-400 uppercase">Belongs to:</span>
-                                <span className="text-sm font-semibold text-gray-700">{viewedSub.category?.name || 'N/A'}</span>
-                            </div>
-                        </div>
-                        <button className="p-1 hover:rotate-90 transition-transform duration-300" style={{ color: THEME_COLOR }} onClick={() => setViewedSub(null)}>
-                            <FiPlus className="rotate-45" size={24} />
                         </button>
                     </div>
                 </div>

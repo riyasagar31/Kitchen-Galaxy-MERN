@@ -12,5 +12,5 @@ body {
 
 body {
   font-family: 'Outfit', sans-serif;
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-gray-100 text-gray-900;
 }

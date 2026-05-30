@@ -28,7 +28,7 @@ export default function ContactUs() {
     };
 
     return (
-        <div className="bg-white min-h-screen pt-20 pb-20">
+        <div className="bg-gray-100 min-h-screen pt-20 pb-20">
             {/* Back Button */}
             <div className="max-w-7xl mx-auto px-4 pt-12">
                 <button

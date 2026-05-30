@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { FiMapPin, FiPhone, FiMail, FiArrowUp, FiInfo, FiMessageSquare, FiHome } from 'react-icons/fi';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 const Footer = () => {
+  const location = useLocation();
   const primaryColor = "#ff5252";
   const [showTopBtn, setShowTopBtn] = useState(false);
   const [showEmailMenu, setShowEmailMenu] = useState(false);
+
+  // Hide footer on dashboard pages
+  const dashboardPrefixes = ['/admin', '/seller', '/customer'];
+  const isDashboard = dashboardPrefixes.some(prefix => location.pathname.startsWith(prefix));
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,6 +23,8 @@ const Footer = () => {
   const goToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  if (isDashboard) return null;
 
   return (
     <footer className="relative bg-white text-gray-700 py-8 px-6 border-t border-gray-300 text-base">
@@ -139,10 +146,10 @@ const Footer = () => {
       {/* Bottom Copyright */}
       <div className="max-w-6xl mx-auto mt-10 pt-10 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-widest px-4">
         <p>© 2026 Kitchen Galaxy. All Rights Reserved.</p>
-        <div className="flex gap-10 mt-6 md:mt-0">
+        {/* <div className="flex gap-10 mt-6 md:mt-0">
           <a href="#" className="hover:text-gray-900 transition-colors">Privacy</a>
           <a href="#" className="hover:text-gray-900 transition-colors">Terms</a>
-        </div>
+        </div> */}
       </div>
     </footer>
   );

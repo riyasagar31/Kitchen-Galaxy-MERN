@@ -1,6 +1,7 @@
 import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
+import User from '../models/User.js';
 import * as MailService from '../services/mailService.js';
 
 export const createOrder = async (req, res) => {
@@ -17,7 +18,8 @@ export const createOrder = async (req, res) => {
 
     const orderItems = [];
     const orderSellers = new Set();
-    let calculatedTotal = 0;
+    let subtotal = 0;
+    let totalGstAmount = 0;
 
     for (const item of items) {
       const dbProduct = dbProductsMap[item.product];
@@ -38,23 +40,37 @@ export const createOrder = async (req, res) => {
         orderSellers.add(dbProduct.seller.toString());
       }
 
-      const itemTotal = dbProduct.price * item.qty;
-      calculatedTotal += itemTotal;
+      const gstRate = dbProduct.gstRate || 18;
+      const itemGstAmount = ((dbProduct.price * gstRate) / 100) * item.qty;
+      const itemSubtotal = dbProduct.price * item.qty;
+
+      subtotal += itemSubtotal;
+      totalGstAmount += itemGstAmount;
 
       orderItems.push({
         product: item.product,
         name: dbProduct.name,
         qty: item.qty,
         price: dbProduct.price,
+        gstRate: gstRate,
+        gstAmount: itemGstAmount,
         image: dbProduct.image || (dbProduct.images && dbProduct.images[0]), // Save image
         seller: dbProduct.seller // Link item to seller
       });
     }
 
+    const cgst = totalGstAmount / 2;
+    const sgst = totalGstAmount / 2;
+    const grandTotal = subtotal + totalGstAmount;
+
     const newOrder = new Order({
       user: userId,
       items: orderItems,
-      totalAmount: calculatedTotal, // Use server-side calculated total for security
+      subtotal,
+      gstAmount: totalGstAmount,
+      cgst,
+      sgst,
+      totalAmount: grandTotal, // Use server-side calculated total for security
       shippingAddress,
       paymentMethod,
       status: 'Pending',
@@ -63,14 +79,28 @@ export const createOrder = async (req, res) => {
 
     const savedOrder = await newOrder.save();
 
-    // 2. Reduce Stock in Database
+    // 2. Reduce Stock in Database and 3. Notify Sellers
+    const sellersToNotify = Array.from(orderSellers);
+    for (const sellerId of sellersToNotify) {
+      try {
+        const seller = await User.findById(sellerId);
+        if (seller) {
+          const sellerItems = orderItems.filter(item => item.seller.toString() === sellerId);
+          await MailService.sendSellerNewOrderEmail(seller.email, seller.name, savedOrder._id, sellerItems);
+        }
+      } catch (err) {
+        console.error(`Failed to notify seller ${sellerId}:`, err);
+      }
+    }
+
+    // Reduce stock for all items
     for (const item of orderItems) {
       await Product.findByIdAndUpdate(item.product, {
         $inc: { stock: -item.qty }
       });
     }
 
-    // Send Confirmation Email (Bill)
+    // Send Confirmation Email to Customer (Bill)
     await MailService.sendOrderConfirmationEmail(req.user.email, req.user.name, savedOrder);
 
     // Clear Cart after order

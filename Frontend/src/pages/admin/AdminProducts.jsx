@@ -1,8 +1,9 @@
 // src/pages/admin/AdminProducts.jsx
 import React, { useEffect, useMemo, useRef, useState, Fragment } from 'react';
-import { FiEye, FiEdit2, FiTrash2, FiSearch, FiChevronLeft, FiChevronRight, FiArrowLeft } from 'react-icons/fi';
+import { FiEye, FiEdit2, FiTrash2, FiSearch, FiChevronLeft, FiChevronRight, FiArrowLeft, FiDownload, FiPlus, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import ExcelJS from 'exceljs';
 
 export default function AdminProducts() {
   const navigate = useNavigate();
@@ -37,6 +38,20 @@ export default function AdminProducts() {
     images: [], // New (File objects)
     replaceImages: false // New
   });
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [allSellers, setAllSellers] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [addForm, setAddForm] = useState({
+    name: '',
+    price: 0,
+    stock: 0,
+    categoryId: '',
+    subCategoryId: '',
+    brandId: '',
+    description: '',
+    seller: ''
+  });
+  const [addImageFiles, setAddImageFiles] = useState([]);
 
   const token = localStorage.getItem('token');
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
@@ -62,6 +77,17 @@ export default function AdminProducts() {
       } catch (err) { console.error("Dropdown load error:", err); }
     };
     fetchData();
+
+    // Fetch all active sellers for the dropdown
+    const fetchSellers = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/admin/users?role=seller', { headers });
+        const data = await res.json();
+        const activeOnly = (data.users || []).filter(s => s.status === 'active');
+        setAllSellers(activeOnly);
+      } catch (err) { console.error("Seller fetch error:", err); }
+    };
+    fetchSellers();
   }, [headers]);
 
   // Debounce seller search
@@ -106,6 +132,7 @@ export default function AdminProducts() {
     return products.filter(p =>
       p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.subCategory?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.category?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.brand?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.brand?.toLowerCase?.().includes(searchQuery.toLowerCase())
     );
@@ -116,6 +143,15 @@ export default function AdminProducts() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSellerQuery('');
+    setSelectedSeller(null);
+    setCategoryFilter('');
+    setCurrentPage(1);
+    toast.success('Filters cleared');
+  };
 
   const openView = (id) => {
     setExpandedEditId(null);
@@ -210,8 +246,108 @@ export default function AdminProducts() {
     } catch (err) { toast.error('Delete failed'); }
   };
 
+  const handleAddSubmit = async () => {
+    if (!addForm.name.trim() || !addForm.price || !addForm.categoryId || !addForm.seller) {
+      return toast.error('Name, price, category, and seller are required');
+    }
+
+    try {
+      setIsSubmitting(true);
+      const formData = new FormData();
+      formData.append('name', addForm.name);
+      formData.append('price', addForm.price);
+      formData.append('stock', addForm.stock);
+      formData.append('categoryId', addForm.categoryId);
+      formData.append('subCategoryId', addForm.subCategoryId);
+      formData.append('brandId', addForm.brandId);
+      formData.append('description', addForm.description);
+      formData.append('seller', addForm.seller);
+
+      if (addImageFiles.length > 0) {
+        Array.from(addImageFiles).forEach(file => {
+          formData.append('images', file);
+        });
+      }
+
+      const res = await fetch(`http://localhost:5000/api/admin/products`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (data.error) return toast.error(data.error);
+      
+      toast.success('Product added successfully');
+      setShowAddModal(false);
+      setAddForm({
+        name: '', price: 0, stock: 0, categoryId: '',
+        subCategoryId: '', brandId: '', description: '', seller: ''
+      });
+      setAddImageFiles([]);
+      load();
+    } catch (err) {
+      toast.error('Creation failed');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Custom styles for icons
   const iconStyle = "transition-colors duration-200 text-[#ff5252] hover:text-[#e53935]";
+
+  const exportToSystemReportExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Filtered Products');
+
+      worksheet.columns = [
+        { header: 'Product Name', key: 'name', width: 35 },
+        { header: 'Category', key: 'category', width: 20 },
+        { header: 'SubCategory', key: 'subCategory', width: 20 },
+        { header: 'Brand', key: 'brand', width: 20 },
+        { header: 'Seller', key: 'seller', width: 25 },
+        { header: 'Price (₹)', key: 'price', width: 15 },
+        { header: 'Stock', key: 'stock', width: 10 },
+        { header: 'Added Date', key: 'date', width: 15 }
+      ];
+
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
+
+      filteredProducts.forEach(p => {
+        worksheet.addRow({
+          name: p.name,
+          category: p.category?.name || categories.find(c => c._id === p.category)?.name || '-',
+          subCategory: p.subCategory?.name || subCategories.find(s => s._id === p.subCategory)?.name || '-',
+          brand: p.brand?.name || brands.find(b => b._id === p.brand)?.name || '-',
+          seller: p.seller?.name || '-',
+          price: p.price,
+          stock: p.stock,
+          date: new Date(p.createdAt).toLocaleDateString()
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `admin_products_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Excel Report downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating Excel report:', error);
+      toast.error('Failed to generate Excel report');
+    }
+  };
 
   return (
 
@@ -229,27 +365,42 @@ export default function AdminProducts() {
             </div>
 
       <div className="flex flex-col mb-6 space-y-4">
-        <h3 className="text-xl font-bold text-gray-900">Manage products</h3>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h3 className="text-xl font-bold text-gray-900">Manage products</h3>
+          <button
+            onClick={exportToSystemReportExcel}
+            className="flex items-center gap-2 border-2 border-[#ff5252] text-[#ff5252] px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-[#ff5252] hover:text-white transition-all shadow-sm active:scale-95 bg-white shrink-0"
+          >
+            <FiDownload /> Excel Report
+          </button>
+          {/* <button
+            onClick={() => setShowAddModal(true)}
+            style={{ backgroundColor: '#ff5252' }}
+            className="flex items-center gap-2 text-white px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest hover:brightness-110 transition-all shadow-md active:scale-95 shrink-0"
+          >
+            <FiPlus className="stroke-[3px]" /> Add New Product
+          </button> */}
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div className="relative">
-            <label className="block text-xs font-medium text-gray-500 uppercase">Search Products</label>
-            <div className="relative mt-1">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[180px] max-w-[200px]">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Search Products</label>
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 size-3.5" />
               <input
                 type="text"
-                placeholder="Name, subcat, or brand..."
-                className="pl-10 pr-4 py-1.5 w-full border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-[#ff5252] outline-none"
+                placeholder="Name, subcat..."
+                className="pl-9 pr-3 py-1.5 w-full border border-gray-200 rounded-lg text-xs focus:ring-1 focus:ring-[#ff5252] outline-none transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="relative">
-            <label className="block text-xs font-medium text-gray-500 uppercase">Seller</label>
+          <div className="flex-1 min-w-[180px] max-w-[200px] relative">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Seller</label>
             <input
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-1 focus:ring-[#ff5252] sm:text-sm"
+              className="block w-full border border-gray-200 rounded-lg py-1.5 px-3 focus:outline-none focus:ring-1 focus:ring-[#ff5252] text-xs transition-all"
               placeholder="Type seller name"
               value={sellerQuery}
               onChange={e => {
@@ -258,13 +409,18 @@ export default function AdminProducts() {
               }}
             />
             {selectedSeller && (
-              <button onClick={() => { setSelectedSeller(null); setSellerQuery(''); }} className="absolute right-2 top-8 text-[10px] text-[#ff5252] font-bold uppercase hover:text-[#e53935]">Clear</button>
+              <button 
+                onClick={() => { setSelectedSeller(null); setSellerQuery(''); }} 
+                className="absolute right-2 top-7 text-[10px] text-[#ff5252] font-black uppercase hover:text-[#e53935]"
+              >
+                <FiX />
+              </button>
             )}
             {sellerSuggestions.length > 0 && !selectedSeller && (
-              <div className="absolute z-20 mt-1 w-full bg-white shadow-xl border rounded-md py-1 max-h-40 overflow-auto">
+              <div className="absolute z-20 mt-1 w-full bg-white shadow-xl border rounded-md py-1 max-h-40 overflow-auto border-gray-100">
                 {sellerSuggestions.map(s => (
-                  <div key={s._id} className="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-0" onClick={() => { setSelectedSeller(s); setSellerQuery(s.name); setSellerSuggestions([]); }}>
-                    <p className="text-sm font-medium">{s.name}</p>
+                  <div key={s._id} className="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0" onClick={() => { setSelectedSeller(s); setSellerQuery(s.name); setSellerSuggestions([]); }}>
+                    <p className="text-xs font-semibold text-gray-700">{s.name}</p>
                     <p className="text-[10px] text-gray-400">{s.email}</p>
                   </div>
                 ))}
@@ -272,10 +428,10 @@ export default function AdminProducts() {
             )}
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase">Category</label>
+          <div className="flex-1 min-w-[150px] max-w-[180px]">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Category</label>
             <select
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-1 focus:ring-[#ff5252] sm:text-sm"
+              className="block w-full border border-gray-200 rounded-lg py-1.5 px-2 focus:outline-none focus:ring-1 focus:ring-[#ff5252] text-xs bg-white transition-all cursor-pointer"
               value={categoryFilter}
               onChange={e => setCategoryFilter(e.target.value)}
             >
@@ -283,6 +439,21 @@ export default function AdminProducts() {
               {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
             </select>
           </div>
+
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 border border-gray-200 text-gray-500 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-50 transition-all active:scale-95"
+          >
+            Clear
+          </button>
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{ backgroundColor: '#ff5252' }}
+            className="flex items-center gap-1.5 text-white px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-tight hover:brightness-110 transition-all shadow-sm active:scale-95 shrink-0 ml-auto"
+          >
+            <FiPlus className="stroke-[3px]" /> New Product
+          </button>
         </div>
       </div>
 
@@ -303,7 +474,7 @@ export default function AdminProducts() {
               <Fragment key={p._id}>
                 <tr className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 font-medium text-gray-900">{p.name}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-700">₹{Number(p.price).toLocaleString()}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-700">{Number(p.price).toLocaleString()}</td>
                   <td className="px-6 py-4">{p.stock}</td>
                   <td className="px-6 py-4 text-gray-500">{p.seller?.name || '-'}</td>
                   {/* <td className="px-6 py-4 text-gray-500">{p.brand?.name || (typeof p.brand === 'string' ? p.brand : '-')}</td> */}
@@ -356,7 +527,7 @@ export default function AdminProducts() {
                             <input className="border border-gray-300 p-2 rounded text-sm focus:ring-1 focus:ring-[#ff5252] outline-none" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase">Price (₹)</label>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase">Price</label>
                             <input className="border border-gray-300 p-2 rounded text-sm focus:ring-1 focus:ring-[#ff5252] outline-none" type="number" value={editForm.price} onChange={e => setEditForm({ ...editForm, price: Number(e.target.value) })} />
                           </div>
                           <div className="flex flex-col gap-1">
@@ -443,6 +614,149 @@ export default function AdminProducts() {
             >
               <FiChevronRight size={20} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add Product Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/40 z-[1000] flex items-center justify-center p-4 backdrop-blur-[2px]">
+          <div className="bg-white rounded-lg w-full max-w-[720px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800">Add New Product</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-300 hover:text-gray-600 p-1 transition-colors">
+                <FiX size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-200 rounded-md p-2.5 text-sm text-gray-800 focus:ring-1 focus:ring-[#ff5252] outline-none transition-all placeholder:text-gray-300"
+                    placeholder="Product name"
+                    value={addForm.name}
+                    onChange={e => setAddForm({ ...addForm, name: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Seller</label>
+                  <select
+                    className="w-full border border-gray-200 rounded-md p-2.5 text-sm text-gray-800 focus:ring-1 focus:ring-[#ff5252] outline-none transition-all cursor-pointer appearance-none bg-no-repeat bg-[right_10px_center] bg-white"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundSize: '16px' }}
+                    value={addForm.seller}
+                    onChange={e => setAddForm({ ...addForm, seller: e.target.value })}
+                  >
+                    <option value="">Choose Seller</option>
+                    {allSellers.map(s => <option key={s._id} value={s._id}>{s.name} ({s.email})</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Price (₹)</label>
+                  <input
+                    type="number"
+                    className="w-full border border-gray-200 rounded-md p-2.5 text-sm text-gray-800 focus:ring-1 focus:ring-[#ff5252] outline-none transition-all"
+                    value={addForm.price}
+                    onChange={e => setAddForm({ ...addForm, price: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Stock</label>
+                  <input
+                    type="number"
+                    className="w-full border border-gray-200 rounded-md p-2.5 text-sm text-gray-800 focus:ring-1 focus:ring-[#ff5252] outline-none transition-all"
+                    value={addForm.stock}
+                    onChange={e => setAddForm({ ...addForm, stock: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Category</label>
+                  <select
+                    className="w-full border border-gray-200 rounded-md p-2.5 text-sm text-gray-800 focus:ring-1 focus:ring-[#ff5252] outline-none transition-all cursor-pointer appearance-none bg-no-repeat bg-[right_10px_center] bg-white"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundSize: '16px' }}
+                    value={addForm.categoryId}
+                    onChange={e => setAddForm({ ...addForm, categoryId: e.target.value, subCategoryId: '' })}
+                  >
+                    <option value="">Choose Category</option>
+                    {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">SubCategory</label>
+                  <select
+                    className="w-full border border-gray-200 rounded-md p-2.5 text-sm text-gray-800 focus:ring-1 focus:ring-[#ff5252] outline-none transition-all disabled:bg-gray-50 appearance-none bg-no-repeat bg-[right_10px_center] bg-white"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundSize: '16px' }}
+                    value={addForm.subCategoryId}
+                    disabled={!addForm.categoryId}
+                    onChange={e => setAddForm({ ...addForm, subCategoryId: e.target.value })}
+                  >
+                    <option value="">Choose SubCategory</option>
+                    {subCategories.filter(s => (s.category?._id || s.category) === addForm.categoryId).map(s => (
+                      <option key={s._id} value={s._id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Brand</label>
+                  <select
+                    className="w-full border border-gray-200 rounded-md p-2.5 text-sm text-gray-800 focus:ring-1 focus:ring-[#ff5252] outline-none transition-all appearance-none bg-no-repeat bg-[right_10px_center] bg-white"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundSize: '16px' }}
+                    value={addForm.brandId}
+                    onChange={e => setAddForm({ ...addForm, brandId: e.target.value })}
+                  >
+                    <option value="">Select a Brand</option>
+                    {brands.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Product Images</label>
+                  <div className="flex items-center gap-4 py-1">
+                    <label className="cursor-pointer bg-[#eceff1] hover:bg-[#cfd8dc] text-gray-700 px-4 py-2 rounded-md text-xs font-bold transition-colors">
+                      Choose Files
+                      <input type="file" multiple className="hidden" onChange={e => setAddImageFiles(e.target.files)} />
+                    </label>
+                    <span className="text-xs text-gray-400 truncate max-w-[150px]">
+                      {addImageFiles.length > 0 ? `${addImageFiles.length} files selected` : 'No file chosen'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="col-span-1 md:col-span-2 space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Description</label>
+                  <textarea
+                    rows={3}
+                    className="w-full border border-gray-200 rounded-md p-2.5 text-sm text-gray-800 focus:ring-1 focus:ring-[#ff5252] outline-none transition-all resize-none"
+                    value={addForm.description}
+                    onChange={e => setAddForm({ ...addForm, description: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-[#f8f9fa] flex justify-end gap-3 border-t border-gray-100">
+              <button
+                className="px-6 py-2 bg-[#eceff1] text-gray-500 rounded-md font-bold text-xs uppercase tracking-tight hover:bg-[#cfd8dc] hover:text-gray-700 transition-all font-sans"
+                onClick={() => setShowAddModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-6 py-2 bg-[#ff5252] text-white rounded-md font-bold text-xs uppercase tracking-tight hover:bg-[#ff1744] transition-all disabled:opacity-50 font-sans"
+                onClick={handleAddSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Adding...' : 'Add Product'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -3,7 +3,7 @@ import { useCart } from '../context/CartContext.jsx';
 import { useNavigate } from 'react-router-dom';
 
 const CartSidebar = ({ isOpen, onClose }) => {
-  const { cartItems, removeFromCart, updateQty, cartTotal } = useCart();
+  const { cartItems, removeFromCart, updateQty, subtotal, totalGst, cgst, sgst, grandTotal } = useCart();
   const navigate = useNavigate();
 
   if (!isOpen) return null;
@@ -51,7 +51,7 @@ const CartSidebar = ({ isOpen, onClose }) => {
                 {/* Product Image */}
                 <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                   <img
-                    src={`http://localhost:5000${item.image}`}
+                    src={item.images?.[0] ? `http://localhost:5000${item.images[0]}` : item.image ? `http://localhost:5000${item.image}` : 'https://placehold.co/100?text=No+Image'}
                     alt={item.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -98,10 +98,22 @@ const CartSidebar = ({ isOpen, onClose }) => {
 
         {/* Footer with Checkout */}
         {cartItems.length > 0 && (
-          <div className="p-6 border-t bg-gray-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-gray-600 font-medium">Subtotal</span>
-              <span className="text-2xl font-black text-gray-900">₹{cartTotal}</span>
+          <div className="p-6 border-t bg-gray-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] space-y-3">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500 font-medium">Subtotal</span>
+              <span className="font-bold text-gray-700">₹{subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-gray-400 font-medium">CGST </span>
+              <span className="font-bold text-gray-400">₹{cgst.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-gray-400 font-medium">SGST </span>
+              <span className="font-bold text-gray-400">₹{sgst.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center pt-3 border-t">
+              <span className="text-gray-900 font-black">Total</span>
+              <span className="text-2xl font-black text-gray-900">₹{grandTotal.toFixed(2)}</span>
             </div>
 
             <button
@@ -109,7 +121,7 @@ const CartSidebar = ({ isOpen, onClose }) => {
                 onClose();
                 navigate('/customer/cart'); // Navigate to full cart page
               }}
-              className="w-full bg-[#ff5252] text-white py-4 rounded-xl font-bold hover:bg-orange-600 transition-all shadow-lg shadow-orange-200 mb-3"
+              className="w-full bg-[#ff5252] text-white py-4 rounded-xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-200 mb-3"
             >
               View Full Cart
             </button>
@@ -119,7 +131,7 @@ const CartSidebar = ({ isOpen, onClose }) => {
                 onClose();
                 navigate('/customer/checkout'); // Or wherever your checkout route is
               }}
-              className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold hover:bg-black transition-all"
+              className="w-full bg-[#ff5252] text-white py-4 rounded-xl font-bold hover:bg-black transition-all"
             >
               Checkout Now
             </button>

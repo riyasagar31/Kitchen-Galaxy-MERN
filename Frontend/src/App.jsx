@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { CartSidebarProvider } from './context/CartSidebarContext';
 import Navbar from './components/Navbar';
 import ScrollToTop from './components/ScrollToTop';
 import Home from './pages/Home';
@@ -17,6 +18,8 @@ import SellerLayout from './layouts/SellerLayout';
 import SellerDashboard from './pages/seller/SellerDashboard';
 import ManageProduct from './pages/seller/ManageProduct.jsx';
 import SellerOrders from './pages/seller/SellerOrders.jsx';
+import SalesReport from './pages/seller/SalesReport.jsx';
+import GstReport from './pages/seller/GstReport.jsx';
 
 // Admin
 import AdminLayout from './layouts/AdminLayout.jsx';
@@ -29,6 +32,8 @@ import AdminCategories from './pages/admin/AdminCategories.jsx';
 import AdminSubCategories from './pages/admin/AdminSubCategories.jsx';
 import AdminSellers from './pages/admin/AdminSellers.jsx';
 import AdminBrands from './pages/admin/AdminBrands.jsx';
+import AdminSalesReport from './pages/admin/AdminSalesReport.jsx';
+import AdminGstReport from './pages/admin/AdminGstReport.jsx';
 
 // New Pages
 import AboutUs from './pages/AboutUs.jsx';
@@ -74,64 +79,71 @@ export default function App() {
       <Toaster position="top-right" />
       <AuthProvider>
         <CartProvider>
-          <Navbar />
-          <Routes>
-            {/* Admin routes */}
-            <Route
-              path="/admin"
-              element={<RequireAuth allowedRole="admin"><AdminLayout /></RequireAuth>}
-            >
-              <Route path="dashboard" element={<AdminDashboard />} />
-              <Route path="products" element={<AdminProducts />} />
-              <Route path="orders" element={<AdminOrders />} />
-              <Route path="requests" element={<AdminCategoryRequests />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="categories" element={<AdminCategories />} />
-              <Route path="subcategories" element={<AdminSubCategories />} />
-              <Route path="sellers" element={<AdminSellers />} />
-              <Route path="brands" element={<AdminBrands />} />
-              <Route index element={<Navigate to="dashboard" replace />} />
-            </Route>
+          <CartSidebarProvider>
+            <Navbar />
+            <Routes>
+              {/* Admin routes */}
+              <Route
+                path="/admin"
+                element={<RequireAuth allowedRole="admin"><AdminLayout /></RequireAuth>}
+              >
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="products" element={<AdminProducts />} />
+                <Route path="orders" element={<AdminOrders />} />
+                <Route path="requests" element={<AdminCategoryRequests />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="categories" element={<AdminCategories />} />
+                <Route path="subcategories" element={<AdminSubCategories />} />
+                <Route path="sellers" element={<AdminSellers />} />
+                <Route path="brands" element={<AdminBrands />} />
+                <Route path="sales-report" element={<AdminSalesReport />} />
+                <Route path="gst-report" element={<AdminGstReport />} />
+                <Route index element={<Navigate to="dashboard" replace />} />
+              </Route>
 
-            {/* Seller routes */}
-            <Route
-              path="/seller"
-              element={<RequireAuth allowedRole="seller"><SellerLayout /></RequireAuth>}
-            >
-              <Route index element={<SellerDashboard />} />
-              <Route path="orders" element={<SellerOrders />} />
-              <Route path="products" element={<ManageProduct />} />
-            </Route>
+              {/* Seller routes */}
+              <Route
+                path="/seller"
+                element={<RequireAuth allowedRole="seller"><SellerLayout /></RequireAuth>}
+              >
+                <Route index element={<SellerDashboard />} />
+                <Route path="orders" element={<SellerOrders />} />
+                <Route path="products" element={<ManageProduct />} />
+                <Route path="sales-report" element={<SalesReport />} />
+                <Route path="gst-report" element={<GstReport />} />
+              </Route>
 
-            {/* Customer routes - FIXED PATHS HERE */}
-            <Route
-              path="/customer"
-              element={<RequireAuth allowedRole="customer"><CustomerLayout /></RequireAuth>}
-            >
-              <Route path="home" element={<CustomerHome />} />
-              <Route path="orders" element={<CustomerOrders />} />
-              <Route path="cart" element={<CustomerCart />} />
-              <Route path="checkout" element={<Checkout />} />
-              <Route path="wishlist" element={<Wishlist />} />
-              <Route index element={<Navigate to="home" replace />} />
-            </Route>
+              {/* Customer routes - FIXED PATHS HERE */}
+              <Route
+                path="/customer"
+                element={<RequireAuth allowedRole="customer"><CustomerLayout /></RequireAuth>}
+              >
+                <Route path="home" element={<CustomerHome />} />
+                <Route path="dashboard" element={<CustomerHome />} />
+                <Route path="orders" element={<CustomerOrders />} />
+                <Route path="cart" element={<CustomerCart />} />
+                <Route path="checkout" element={<Checkout />} />
+                <Route path="wishlist" element={<Wishlist />} />
+                <Route index element={<Navigate to="home" replace />} />
+              </Route>
 
-            {/* Public routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/home" element={<Home />} />
-            <Route path="/about" element={<AboutUs />} />
-            <Route path="/contact" element={<ContactUs />} />
-            <Route path="/products/:id" element={<ProductDetail />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-            <Route path="/reset-password/:token" element={<ResetPassword />} />
-            <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+              {/* Public routes */}
+              <Route path="/" element={<Home />} />
+              <Route path="/home" element={<Home />} />
+              <Route path="/about" element={<AboutUs />} />
+              <Route path="/contact" element={<ContactUs />} />
+              <Route path="/products/:id" element={<ProductDetail />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
+              <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-          <Footer />
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+            <Footer />
+          </CartSidebarProvider>
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>

@@ -2,10 +2,55 @@
 import Product from '../../models/Product.js';
 import User from '../../models/User.js';
 import Category from '../../models/Category.js';
+import Brand from '../../models/Brand.js';
 
 /**
- * GET /api/admin/products?seller=<email|id>&category=<string>&visible=true|false
+ * POST /api/admin/products
  */
+export const createProduct = async (req, res) => {
+  try {
+    const { name, price, stock, categoryId, subCategoryId, brandId, description = '', seller } = req.body;
+
+    if (!name || !price || !categoryId || !seller) {
+      return res.status(400).json({ error: 'Name, price, category, and seller are required' });
+    }
+
+    let finalBrandId = brandId;
+    if (!finalBrandId) {
+      let genericBrand = await Brand.findOne({ name: 'Generic' });
+      if (!genericBrand) {
+        genericBrand = await Brand.create({ name: 'Generic', status: 'active' });
+      }
+      finalBrandId = genericBrand._id;
+    }
+
+    const getGstRate = async (catId) => {
+      const cat = await Category.findById(catId);
+      if (!cat) return 18;
+      return (cat.name === 'Kitchen Appliances' || cat.name === 'Home Appliances') ? 18 : 12;
+    };
+
+    const productData = {
+      name: name.trim(),
+      price: Number(price),
+      stock: Number(stock) || 0,
+      seller,
+      category: categoryId,
+      brand: finalBrandId,
+      description,
+      gstRate: await getGstRate(categoryId),
+      images: (req.files || []).map(f => `/uploads/${f.filename}`)
+    };
+
+    if (subCategoryId) productData.subCategory = subCategoryId;
+
+    const product = await Product.create(productData);
+    return res.status(201).json({ success: true, product });
+  } catch (err) {
+    console.error('createProduct error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
 export const listProducts = async (req, res) => {
   try {
     const { seller, category, visible, q } = req.query; // Added q for search

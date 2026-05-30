@@ -5,9 +5,13 @@ const transform = (items) => (items || []).map(i => ({
     ...i,
     _id: i.product?._id || i.product,
     qty: i.quantity,
-    name: i.product?.name || i.title || "Product",
+    name: i.product?.name || i.name || i.title || "Product",
     price: i.product?.price || i.price || 0,
-    image: i.product?.image || (i.product?.images && i.product.images[0]) || i.image || (i.images && i.images[0]),
+    category: i.product?.category || i.category || "",
+    gstRate: i.product?.gstRate || i.gstRate || 18,
+    // Resolve image: prefer populated product images, then fall back to saved cart item fields
+    image: i.product?.image || (i.product?.images?.[0]) || i.image || (i.images?.[0]) || '',
+    images: i.product?.images || i.images || (i.image ? [i.image] : []) || [],
     stock: i.product?.stock === undefined ? i.stock : i.product?.stock
 }));
 
@@ -49,7 +53,18 @@ const cartSlice = createSlice({
     reducers: {},
     extraReducers: (builder) => {
         builder
-            .addCase(fetchCart.fulfilled, (state, action) => { state.items = action.payload; })
+            .addCase(fetchCart.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(fetchCart.fulfilled, (state, action) => {
+                state.loading = false;
+                state.items = action.payload;
+            })
+            .addCase(fetchCart.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.error.message;
+            })
             .addCase(addToCart.fulfilled, (state, action) => { state.items = action.payload; })
             .addCase(updateQty.fulfilled, (state, action) => { state.items = action.payload; })
             .addCase(removeFromCart.fulfilled, (state, action) => { state.items = action.payload; })

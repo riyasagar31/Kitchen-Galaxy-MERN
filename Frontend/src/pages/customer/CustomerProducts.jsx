@@ -18,7 +18,7 @@ export default function CustomerProducts() {
       </h2>
 
       {wishlist.length === 0 ? (
-        <p className="text-gray-600">You haven’t saved any products yet.</p>
+        <p className="text-gray-600">You haven't saved any products yet.</p>
       ) : (
         <div className="overflow-x-auto bg-white shadow rounded-lg">
           <table className="min-w-full divide-y divide-gray-200">

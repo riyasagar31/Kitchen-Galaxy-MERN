@@ -19,7 +19,11 @@ import brandRoutes from './src/routes/brandRoutes.js';
 import orderRoutes from './src/routes/orderRoutes.js';
 import categoryRequestRoutes from './src/routes/categoryRequestRoutes.js';
 import reviewRoutes from './src/routes/reviewRoutes.js';
+import sellerOrderRoutes from './src/routes/sellerOrderRoutes.js'; // Helper for import
 import contactRoutes from './src/routes/contactRoutes.js';
+import addressRoutes from './src/routes/addressRoutes.js';
+import paymentRoutes from './src/routes/paymentRoutes.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,8 +53,9 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/contact', contactRoutes);
-import sellerOrderRoutes from './src/routes/sellerOrderRoutes.js'; // Helper for import
-
+app.use('/api/addresses', addressRoutes);
+//payment
+app.use("/api/payment", paymentRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/seller-orders', sellerOrderRoutes); // NEW: Seller Orders
 

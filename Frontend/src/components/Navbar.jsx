@@ -1,13 +1,16 @@
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useCartSidebar } from '../context/CartSidebarContext';
+import CartSidebar from './CartSidebar';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { FiShoppingCart, FiChevronDown, FiUser, FiLayout, FiLogOut, FiHeart, FiSearch } from 'react-icons/fi';
+import { FiShoppingCart, FiChevronDown, FiUser, FiLayout, FiLogOut, FiHeart, FiSearch, FiMenu, FiX } from 'react-icons/fi';
 import api from '../services/api';
 
 const Navbar = () => {
   const { user, logout, loading } = useAuth();
   const { cartItems } = useCart();
+  const { isOpen, openSidebar, closeSidebar } = useCartSidebar();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [localSearch, setLocalSearch] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -18,7 +21,18 @@ const Navbar = () => {
   const [products, setProducts] = useState([]); // For suggestions
   const navigate = useNavigate();
   const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const suggestionRef = useRef(null);
+
+  const priceRanges = [
+    { label: 'All Prices', min: 0, max: 1000000 },
+    { label: 'Under ₹1,000', min: 0, max: 1000 },
+    { label: '₹1,000 - ₹5,000', min: 1000, max: 5000 },
+    { label: '₹5,000 - ₹10,000', min: 5000, max: 10000 },
+    { label: '₹10,000 - ₹20,000', min: 10000, max: 20000 },
+    { label: 'Above ₹20,000', min: 20000, max: 1000000 },
+  ];
 
   const logo = "/logo.png";
   const itemCount = cartItems?.reduce((total, item) => total + item.qty, 0) || 0;
@@ -27,6 +41,8 @@ const Navbar = () => {
   const activeCategory = queryParams.get('category') || 'All';
   const activeSubCategory = queryParams.get('subCategory');
   const activeBrand = queryParams.get('brand');
+  const activeMinPrice = queryParams.get('minPrice') || '0';
+  const activeMaxPrice = queryParams.get('maxPrice') || '1000000';
 
   // 1. Fetch Categories, Brands, and Products (for suggestions)
   useEffect(() => {
@@ -141,12 +157,25 @@ const Navbar = () => {
     setActiveDropdown(null);
   };
 
+  const handlePriceClick = (min, max) => {
+    const params = new URLSearchParams(location.search);
+    if (min === 0 && max === 1000000) {
+      params.delete('minPrice');
+      params.delete('maxPrice');
+    } else {
+      params.set('minPrice', min);
+      params.set('maxPrice', max);
+    }
+    navigate(`/?${params.toString()}`);
+    setActiveDropdown(null);
+  };
+
   if (loading) {
     return (
-      <nav className="flex justify-between items-center px-8 py-4 bg-white shadow-sm sticky top-0 z-[100] h-20">
-        <div className="h-12 w-12 bg-gray-50 animate-pulse rounded-full"></div>
+      <nav className="flex justify-between items-center px-4 md:px-8 py-4 bg-white shadow-sm sticky top-0 z-[100] h-20">
+        <div className="h-10 w-10 md:h-12 md:w-12 bg-gray-50 animate-pulse rounded-full"></div>
         <div className="h-10 w-1/2 bg-gray-50 animate-pulse rounded-2xl"></div>
-        <div className="h-12 w-12 bg-gray-50 animate-pulse rounded-full"></div>
+        <div className="h-10 w-10 md:h-12 md:w-12 bg-gray-50 animate-pulse rounded-full"></div>
       </nav>
     );
   }
@@ -154,22 +183,29 @@ const Navbar = () => {
   return (
     <header className="sticky top-0 z-[100] bg-white shadow-sm">
       {/* --- ROW 1: BRAND, SEARCH, AUTH --- */}
-      <nav className="flex items-center px-8 py-4 h-20 border-b border-gray-100">
-        {/* LEFT: Logo */}
-        <div className="flex-1 flex justify-start">
+      <nav className="flex items-center justify-between px-4 md:px-8 py-4 h-20 border-b border-gray-100">
+        {/* LEFT: Menu Button (Mobile) & Logo */}
+        <div className="flex items-center gap-2 md:gap-4">
+          <button
+            className="lg:hidden p-2 text-gray-700 hover:text-[#ff5252] transition-colors"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+          </button>
+          
           <Link to="/" className="flex items-center group">
             <img
               src={logo}
               alt="Kitchen Galaxy"
-              className="h-14 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+              className="h-10 md:h-14 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
               onError={(e) => { e.target.src = 'https://placehold.co/150?text=KG+Logo'; }}
             />
           </Link>
         </div>
 
-        {/* CENTER: Search Bar */}
-        <div className="flex-1 flex justify-center relative" ref={suggestionRef}>
-          <div className="hidden lg:flex relative w-full max-w-[500px]">
+        {/* CENTER: Search Bar (Desktop) */}
+        <div className="hidden lg:flex flex-1 justify-center relative mx-8" ref={suggestionRef}>
+          <div className="relative w-full max-w-[500px]">
             <input
               type="text"
               placeholder="Search for premium kitchen essentials..."
@@ -208,52 +244,60 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* RIGHT: Nav & Cart */}
-        <div className="flex-1 flex justify-end items-center gap-2">
+        {/* RIGHT: Search (Mobile Trigger), Nav & Cart */}
+        <div className="flex items-center gap-1 md:gap-3">
+          {/* Mobile Search Toggle */}
+          <button 
+            className="lg:hidden p-2 text-gray-700 hover:text-[#ff5252] transition-colors"
+            onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+          >
+            <FiSearch size={22} />
+          </button>
+
           {(!user || user.role === 'customer') && (
             <div className="flex items-center">
               <button
-                onClick={() => navigate(user ? '/customer/cart' : '/login')}
+                onClick={openSidebar}
                 className="relative p-2 text-gray-700 hover:text-[#ff5252] transition-colors flex items-center group"
               >
                 <div className="relative">
-                  <FiShoppingCart size={28} />
+                  <FiShoppingCart className="w-6 h-6 md:w-7 md:h-7" />
                   {itemCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-[#ff5252] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-white">
+                    <span className="absolute -top-1 -right-1 bg-[#ff5252] text-white text-[9px] md:text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-white">
                       {itemCount}
                     </span>
                   )}
                 </div>
               </button>
-              <span className="mx-4 text-gray-300 font-light">|</span>
+              <span className="hidden md:block mx-2 text-gray-300 font-light">|</span>
             </div>
           )}
 
-          <Link to="/" className="px-4 py-2 rounded-xl font-bold text-gray-700 hover:bg-gray-50 hover:text-[#ff5252] transition-all text-lg">Home</Link>
+          <Link to="/" className="hidden md:block px-3 py-2 rounded-xl font-bold text-gray-700 hover:bg-gray-50 hover:text-[#ff5252] transition-all text-sm lg:text-lg">Home</Link>
 
           {!user ? (
             <div className="flex items-center gap-1">
-              <Link to="/login" className="px-4 py-2 rounded-xl text-gray-700 font-bold hover:bg-gray-50 hover:text-[#ff5252] transition-all text-lg">Login</Link>
-              <Link to="/register" className="px-4 py-2 rounded-xl text-gray-700 font-bold hover:bg-gray-50 hover:text-[#ff5252] transition-all text-lg">Register</Link>
+              <Link to="/login" className="px-3 py-2 rounded-xl text-gray-700 font-bold hover:bg-gray-50 hover:text-[#ff5252] transition-all text-sm lg:text-lg">Login</Link>
+              <Link to="/register" className="hidden sm:block px-3 py-2 rounded-xl text-gray-700 font-bold hover:bg-gray-50 hover:text-[#ff5252] transition-all text-sm lg:text-lg">Register</Link>
             </div>
           ) : (
-            <div className="relative border-l pl-6 ml-2">
-              <button onClick={() => setShowProfileMenu(!showProfileMenu)} className="flex items-center gap-2 group focus:outline-none">
-                <div className="w-10 h-10 bg-red-50 text-[#ff5252] flex items-center justify-center rounded-full font-bold group-hover:bg-[#ff5252] group-hover:text-white transition-all shadow-sm">
+            <div className="relative md:border-l md:pl-4 lg:pl-6 md:ml-2">
+              <button onClick={() => setShowProfileMenu(!showProfileMenu)} className="flex items-center gap-1 md:gap-2 group focus:outline-none">
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-red-50 text-[#ff5252] flex items-center justify-center rounded-full font-bold group-hover:bg-[#ff5252] group-hover:text-white transition-all shadow-sm text-xs md:text-base">
                   {user?.name?.charAt(0).toUpperCase()}
                 </div>
                 <div className="hidden md:block text-left leading-tight">
-                  <p className="font-bold text-gray-800 text-sm truncate max-w-[100px]">{user?.name}</p>
-                  <p className="text-[9px] text-gray-400 uppercase font-black tracking-tighter">{user?.role}</p>
+                  <p className="font-bold text-gray-800 text-xs lg:text-sm truncate max-w-[80px] lg:max-w-[100px]">{user?.name}</p>
+                  <p className="text-[8px] lg:text-[9px] text-gray-400 uppercase font-black tracking-tighter">{user?.role}</p>
                 </div>
                 <FiChevronDown className={`transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : ''}`} />
               </button>
 
               {showProfileMenu && (
-                <div className="absolute right-0 mt-3 w-60 bg-white border border-gray-100 rounded-xl shadow-2xl py-2 z-[110] overflow-hidden">
+                <div className="absolute right-0 mt-3 w-48 md:w-60 bg-white border border-gray-100 rounded-xl shadow-2xl py-2 z-[110] overflow-hidden">
                   <div className="px-4 py-3 border-b bg-gray-50 mb-1">
-                    <p className="text-[10px] uppercase font-bold text-gray-400">Account</p>
-                    <p className="text-sm font-bold text-gray-800 truncate">{user?.email}</p>
+                    <p className="text-[9px] md:text-[10px] uppercase font-bold text-gray-400">Account</p>
+                    <p className="text-xs md:text-sm font-bold text-gray-800 truncate">{user?.email}</p>
                   </div>
                   <Link to={user.role === 'customer' ? "/customer/home" : user.role === 'seller' ? "/seller" : "/admin/dashboard"} className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-[#ff5252]" onClick={() => setShowProfileMenu(false)}>
                     <FiLayout size={18} /> Dashboard
@@ -273,6 +317,120 @@ const Navbar = () => {
           )}
         </div>
       </nav>
+
+      {/* --- MOBILE SEARCH BAR (Expandable) --- */}
+      {isMobileSearchOpen && (
+        <div className="lg:hidden px-4 py-3 bg-gray-50 border-b border-gray-100 animate-in slide-in-from-top duration-300">
+          <div className="relative w-full" ref={suggestionRef}>
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={localSearch}
+              onChange={handleSearchChange}
+              onKeyDown={onKeyDown}
+              className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-[#ff5252] outline-none text-gray-600 font-medium"
+            />
+            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          </div>
+          
+          {/* Mobile Suggestions */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="mt-2 bg-white border border-gray-100 rounded-xl shadow-xl py-2 max-h-[300px] overflow-y-auto">
+              {suggestions.map((p) => (
+                <button
+                  key={p._id}
+                  onClick={() => {
+                    setLocalSearch(p.name);
+                    executeSearch(p.name);
+                    setIsMobileSearchOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50 border-b border-gray-50 last:border-none"
+                >
+                  <div className="w-8 h-8 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                    <img src={`http://localhost:5000${p.images?.[0] || p.image}`} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-800 line-clamp-1">{p.name}</p>
+                    <p className="text-[9px] text-[#ff5252] font-black uppercase tracking-tighter">{p.category?.name}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- MOBILE NAVIGATION MENU (Hamburger) --- */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden absolute top-20 left-0 w-full bg-white shadow-2xl z-[120] border-t border-gray-100 animate-in slide-in-from-left duration-300 max-h-[calc(100vh-80px)] overflow-y-auto">
+          <div className="p-6 space-y-6">
+            {/* Quick Links */}
+            <div className="grid grid-cols-2 gap-3">
+              <Link to="/" className="flex items-center justify-center p-3 rounded-xl bg-gray-50 font-bold text-gray-700 text-xs uppercase tracking-widest hover:bg-red-50 hover:text-[#ff5252]" onClick={() => setIsMobileMenuOpen(false)}>Home</Link>
+              {!user && (
+                <>
+                  <Link to="/login" className="flex items-center justify-center p-3 rounded-xl bg-gray-50 font-bold text-gray-700 text-xs uppercase tracking-widest hover:bg-red-50 hover:text-[#ff5252]" onClick={() => setIsMobileMenuOpen(false)}>Login</Link>
+                  <Link to="/register" className="flex items-center justify-center p-3 rounded-xl bg-gray-50 font-bold text-gray-700 text-xs uppercase tracking-widest hover:bg-red-50 hover:text-[#ff5252]" onClick={() => setIsMobileMenuOpen(false)}>Register</Link>
+                </>
+              )}
+            </div>
+
+            {/* Categories Section */}
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Categories</p>
+              <div className="space-y-1">
+                <button 
+                  onClick={() => { handleCategoryClick('All'); setIsMobileMenuOpen(false); }}
+                  className={`w-full text-left p-3 rounded-lg font-bold text-sm ${activeCategory === 'All' ? 'bg-red-50 text-[#ff5252]' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  All Products
+                </button>
+                {categories.map((cat) => (
+                  <div key={cat._id} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <button 
+                        onClick={() => { handleCategoryClick(cat.name); setIsMobileMenuOpen(false); }}
+                        className={`flex-1 text-left p-3 rounded-lg font-bold text-sm ${activeCategory === cat.name ? 'bg-red-50 text-[#ff5252]' : 'text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        {cat.name}
+                      </button>
+                    </div>
+                    {cat.subcategories?.length > 0 && cat.name === activeCategory && (
+                      <div className="pl-4 border-l-2 border-red-100 ml-4 space-y-1 mt-1">
+                        {cat.subcategories.map((sub) => (
+                          <button
+                            key={sub._id}
+                            onClick={() => { handleSubCategoryClick(cat.name, sub.name); setIsMobileMenuOpen(false); }}
+                            className={`w-full text-left p-2 rounded-md font-medium text-xs ${activeSubCategory === sub.name ? 'text-[#ff5252]' : 'text-gray-500 hover:text-gray-900'}`}
+                          >
+                            {sub.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Brands Section */}
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Top Brands</p>
+              <div className="grid grid-cols-2 gap-2">
+                {brands.slice(0, 10).map((brand) => (
+                  <button
+                    key={brand._id}
+                    onClick={() => { handleBrandClick(brand.name); setIsMobileMenuOpen(false); }}
+                    className={`text-left p-2 rounded-lg font-bold text-[10px] uppercase tracking-tighter ${activeBrand === brand.name ? 'bg-red-50 text-[#ff5252]' : 'text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    {brand.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- ROW 2: CATEGORIES & BRANDS --- */}
       <div className="hidden lg:block bg-white border-b border-gray-300">
@@ -312,6 +470,34 @@ const Navbar = () => {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* PRICE FILTER */}
+            <div
+              className="relative py-1"
+              onMouseEnter={() => setActiveDropdown('Price')}
+              onMouseLeave={() => setActiveDropdown(null)}
+            >
+              <button className={`flex items-center gap-1 text-[11px] font-black uppercase tracking-widest px-4 py-3 rounded-md transition-all duration-300 ${(activeMinPrice !== '0' || activeMaxPrice !== '1000000') ? 'text-[#ff5252]' : 'text-gray-500 hover:text-gray-900'}`}>
+                PRICE <FiChevronDown className={`transition-transform duration-200 ${activeDropdown === 'Price' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {activeDropdown === 'Price' && (
+                <div className="absolute top-full left-0 w-60 bg-white border border-gray-100 rounded-xl shadow-2xl py-3 z-[95] animate-in fade-in zoom-in-95 duration-200">
+                  <div className="px-5 pb-2 mb-1 border-b border-gray-50">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Shop by Price</p>
+                  </div>
+                  {priceRanges.map((range) => (
+                    <button
+                      key={range.label}
+                      onClick={() => handlePriceClick(range.min, range.max)}
+                      className={`w-full text-left px-5 py-2.5 text-[10px] font-black uppercase tracking-tighter transition-all ${(activeMinPrice === range.min.toString() && activeMaxPrice === range.max.toString()) ? 'text-[#ff5252] bg-red-50/50 border-l-2 border-[#ff5252]' : 'text-gray-600 hover:text-[#ff5252] hover:bg-gray-50'}`}
+                    >
+                      {range.label}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
@@ -358,6 +544,7 @@ const Navbar = () => {
       {activeDropdown && (
         <div className="fixed inset-0 top-[120px] bg-black/5 backdrop-blur-[1px] z-[70] pointer-events-none" />
       )}
+      <CartSidebar isOpen={isOpen} onClose={closeSidebar} />
     </header>
   );
 };

@@ -145,7 +145,7 @@ export default function Register() {
                 <option value="seller">Seller (Want to Sell)</option>
               </select>
               {form.role === 'seller' && (
-                <p className="mt-2 text-[10px] text-orange-600 font-bold uppercase tracking-tighter">* Requires Manual Admin Approval</p>
+                <p className="mt-2 text-[10px] text-[#ff5252] font-bold uppercase tracking-tighter">* Requires Manual Admin Approval</p>
               )}
             </div>
           </div>
@@ -154,7 +154,7 @@ export default function Register() {
             <button
               type="submit"
               disabled={submitting || Object.keys(errors).length > 0}
-              className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-[#ff5252] hover:bg-[#e04848] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ff5252] disabled:bg-gray-400 transition-all active:scale-[0.98] shadow-lg"
+              className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-[#ff5252] hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ff5252] disabled:bg-gray-400 transition-all active:scale-[0.98] shadow-lg"
             >
               {submitting ? 'Creating Account...' : 'Register'}
             </button>

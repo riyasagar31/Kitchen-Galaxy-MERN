@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import User from '../models/User.js';
 import * as MailService from '../services/mailService.js';
 
@@ -219,5 +220,73 @@ export const updateUserStatus = async (req, res) => {
     return res.json({ message: `User status updated to ${status}`, users: allSellers, counts });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// --- SEND OTP ---
+export const sendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'No account found with this email' });
+
+    // Status checks
+    if (user.status === 'inactive') return res.status(403).json({ message: 'Account inactive. Please contact admin.' });
+    if (user.status === 'pending') return res.status(403).json({ message: 'Account pending approval. Please wait for admin review.' });
+
+    // Generate 6-digit OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    user.otp = otp;
+    user.otpExpires = otpExpires;
+    await user.save();
+
+    await MailService.sendOTPEmail(user.email, user.name, otp);
+
+    return res.json({ message: 'OTP sent to your email. It is valid for 5 minutes.' });
+  } catch (err) {
+    console.error('Send OTP error:', err);
+    return res.status(500).json({ message: 'Failed to send OTP. Please try again.' });
+  }
+};
+
+// --- VERIFY OTP ---
+export const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ message: 'Email and OTP are required' });
+
+    const user = await User.findOne({ email });
+    if (!user || !user.otp) return res.status(400).json({ message: 'Invalid or expired OTP' });
+
+    // Check expiry
+    if (new Date() > user.otpExpires) {
+      user.otp = null;
+      user.otpExpires = null;
+      await user.save();
+      return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
+    }
+
+    // Check OTP value
+    if (user.otp !== otp) {
+      return res.status(400).json({ message: 'Incorrect OTP. Please try again.' });
+    }
+
+    // Clear OTP after successful verification
+    user.otp = null;
+    user.otpExpires = null;
+
+    // Issue token
+    const token = issueToken(user);
+    user.token = token;
+    await user.save();
+
+    return res.json({ token, user: user.toSafeJSON() });
+  } catch (err) {
+    console.error('Verify OTP error:', err);
+    return res.status(500).json({ message: 'Server error' });
   }
 };

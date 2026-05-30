@@ -1,6 +1,6 @@
 import express from 'express';
 // Controllers
-import { register, login, logout, getMe, updateUserStatus, changePassword, updateProfile } from '../controllers/authController.js';
+import { register, login, logout, getMe, updateUserStatus, changePassword, updateProfile, sendOTP, verifyOTP } from '../controllers/authController.js';
 import { forgotPassword, resetPassword } from '../controllers/passwordController.js';
 
 // Middlewares
@@ -12,6 +12,10 @@ const router = express.Router();
 // --- PUBLIC ROUTES ---
 router.post('/register', register);
 router.post('/login', login);
+
+// OTP Login (Public)
+router.post('/send-otp', sendOTP);
+router.post('/verify-otp', verifyOTP);
 
 // Password Recovery (Public)
 router.post('/forgot-password', forgotPassword);

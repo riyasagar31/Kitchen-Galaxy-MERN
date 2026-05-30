@@ -10,12 +10,17 @@ export const createBrand = async (req, res) => {
       return res.status(400).json({ message: 'Brand name already exists' });
     }
 
-    const brand = await Brand.create({
+    const brandData = {
       name,
       description,
       status: status || 'active'
-    });
+    };
 
+    if (req.file) {
+      brandData.logo = `/uploads/${req.file.filename}`;
+    }
+
+    const brand = await Brand.create(brandData);
     res.status(201).json(brand);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -35,9 +40,15 @@ export const getAllBrandsAdmin = async (req, res) => {
 // Update Brand
 export const updateBrand = async (req, res) => {
   try {
+    const updateData = { ...req.body };
+
+    if (req.file) {
+      updateData.logo = `/uploads/${req.file.filename}`;
+    }
+
     const brand = await Brand.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
 

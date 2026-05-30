@@ -11,13 +11,15 @@ export default function SellerDashboard() {
   const [loading, setLoading] = useState(true);
 
   // Analytics State
-  const [stats, setStats] = useState({ 
-    totalRevenue: 0, 
-    totalOrders: 0, 
-    totalProducts: 0, 
-    statusCounts: {} 
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalProducts: 0,
+    newOrders: 0,
+    gstCollected: 0,
+    statusCounts: {}
   });
-  
+
   const [showModal, setShowModal] = useState(false);
   const [requestForm, setRequestForm] = useState({ type: 'category', name: '', description: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -36,13 +38,26 @@ export default function SellerDashboard() {
         ]);
 
         // Dynamically calculate order count and revenue if the analytics endpoint is lagging
+        // Requirement: Only include completed or delivered orders in sales and GST calculations
         const dynamicOrders = ordersRes.data.length;
-        const dynamicRevenue = ordersRes.data.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
+        const deliveredOrders = ordersRes.data.filter(order => order.status === 'Delivered');
+
+        const dynamicRevenue = deliveredOrders.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
+        const dynamicGstCollected = deliveredOrders.reduce((acc, curr) => {
+          // In listSellerOrders, we return pre-calculated myItems and totalAmount but not totalGst
+          // Let's recalculate from items for safety
+          const itemGst = curr.items?.reduce((sum, item) => sum + (item.gstAmount || 0), 0) || 0;
+          return acc + itemGst;
+        }, 0);
+
+        const pendingOrders = ordersRes.data.filter(order => order.status === 'Pending').length;
 
         setStats({
           totalRevenue: dynamicRevenue || statsRes.data.totalRevenue || 0,
           totalOrders: dynamicOrders || statsRes.data.totalOrders || 0,
           totalProducts: productsRes.data.products?.length || statsRes.data.totalProducts || 0,
+          newOrders: pendingOrders || 0,
+          gstCollected: dynamicGstCollected || statsRes.data.gstCollected || 0,
           statusCounts: statsRes.data.statusCounts || {}
         });
 
@@ -78,26 +93,27 @@ export default function SellerDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      
+
       {/* Clickable Stats Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 mt-6">
-        
-        {/* Total Revenue Card */}
-        <div className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col justify-between min-h-[140px]">
+
+        {/* Total Revenue Card (Clickable to Sales Report) */}
+        <Link
+          to="/seller/sales-report"
+          className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col justify-between min-h-[140px] hover:border-red-200 transition-all hover:shadow-md group"
+        >
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Total Sales</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 group-hover:text-red-400">Total Sales</p>
             <div className="text-3xl font-bold text-gray-900">
               ₹{(stats.totalRevenue || 0).toLocaleString()}
             </div>
           </div>
-          <div className="mt-4">
-             <span className="text-[10px] px-2 py-1 bg-green-50 text-green-600 rounded-full font-bold">Lifetime</span>
-          </div>
-        </div>
+          <div className="mt-4 text-[10px] font-bold text-gray-400 group-hover:text-red-500">View Sales Report →</div>
+        </Link>
 
         {/* Orders Placed Card (Clickable) */}
-        <Link 
-          to="/seller/orders" 
+        <Link
+          to="/seller/orders"
           className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col justify-between min-h-[140px] hover:border-red-200 transition-all hover:shadow-md group"
         >
           <div>
@@ -107,9 +123,49 @@ export default function SellerDashboard() {
           <div className="mt-4 text-[10px] font-bold text-gray-400 group-hover:text-red-500">View All Orders →</div>
         </Link>
 
+        {/* GST Collected Card (Clickable to GST Report) */}
+        <Link
+          to="/seller/gst-report"
+          className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col justify-between min-h-[140px] hover:border-red-200 transition-all hover:shadow-md group"
+        >
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 group-hover:text-red-400">GST Collected</p>
+            <div className="text-3xl font-bold text-gray-900">
+              ₹{(stats.gstCollected || 0).toLocaleString()}
+            </div>
+          </div>
+          <div className="mt-4 text-[10px] font-bold text-gray-400 group-hover:text-red-500">View GST Report →</div>
+        </Link>
+
+        {/* New Orders Card (Clickable) */}
+        <Link
+          to="/seller/orders?status=Pending"
+          className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col justify-between min-h-[140px] hover:border-red-200 transition-all hover:shadow-md group"
+        >
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 group-hover:text-red-400">New Orders</p>
+            <div className={`text-4xl font-bold ${stats.newOrders > 0 ? 'text-gray-900 group-hover:text-red-500' : 'text-gray-300'} transition-colors tracking-tighter`}>
+              {stats.newOrders}
+            </div>
+          </div>
+          <div className="mt-4 text-[10px] font-bold text-gray-400 group-hover:text-red-500 flex items-center gap-2">
+            {stats.newOrders > 0 ? (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
+                Pending Processing →
+              </>
+            ) : (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-200"></span>
+                All caught up →
+              </>
+            )}
+          </div>
+        </Link>
+
         {/* Active Products Card (Clickable) */}
-        <Link 
-          to="/seller/products" 
+        <Link
+          to="/seller/products"
           className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col justify-between min-h-[140px] hover:border-red-200 transition-all hover:shadow-md group"
         >
           <div>
@@ -119,18 +175,6 @@ export default function SellerDashboard() {
           <div className="mt-4 text-[10px] font-bold text-gray-400 group-hover:text-red-500">Manage Inventory →</div>
         </Link>
 
-        {/* Success Rate Card */}
-        <div className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col justify-between min-h-[140px]">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Success Rate</p>
-            <div className="text-3xl font-bold text-gray-900">
-              {stats.totalOrders > 0 
-                ? Math.round(((stats.statusCounts?.Delivered || 0) / stats.totalOrders) * 100) 
-                : 0}%
-            </div>
-          </div>
-          <div className="mt-4 text-[10px] font-bold text-gray-400">Delivered vs Returned</div>
-        </div>
       </div>
 
       {/* Welcome Header Section */}

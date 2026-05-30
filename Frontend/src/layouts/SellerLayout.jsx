@@ -72,7 +72,7 @@ export default function SellerLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
+      <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
         <div className="px-6 py-8">
           {showWelcome && (
             <div className="mb-4 text-2xl font-bold text-gray-800">

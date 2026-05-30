@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { brandService } from '../../services/brandService';
 import {
   FiPlus, FiEdit2, FiTrash2, FiSearch,
-  FiChevronLeft, FiChevronRight, FiArrowLeft
+  FiChevronLeft, FiChevronRight, FiArrowLeft, FiUpload
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -18,8 +18,11 @@ export default function AdminBrands() {
   const [showModal, setShowModal] = useState(false);
   const [editingBrand, setEditingBrand] = useState(null);
   const [formData, setFormData] = useState({
-    status: 'active'
+    name: '',
+    status: 'active',
+    logo: null
   });
+  const [preview, setPreview] = useState(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -58,12 +61,20 @@ export default function AdminBrands() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const data = new FormData();
+    data.append('name', formData.name);
+    if (formData.description) data.append('description', formData.description);
+    data.append('status', formData.status);
+    if (formData.logo instanceof File) {
+      data.append('logo', formData.logo);
+    }
+
     try {
       if (editingBrand) {
-        await brandService.updateBrand(editingBrand._id, formData);
+        await brandService.updateBrand(editingBrand._id, data);
         toast.success("Brand updated!");
       } else {
-        await brandService.createBrand(formData);
+        await brandService.createBrand(data);
         toast.success("Brand created!");
       }
       closeModal();
@@ -88,15 +99,19 @@ export default function AdminBrands() {
   const closeModal = () => {
     setShowModal(false);
     setEditingBrand(null);
-    setFormData({ name: '', description: '', status: 'active' });
+    setFormData({ name: '', description: '', status: 'active', logo: null });
+    setPreview(null);
   };
 
   const openEdit = (brand) => {
     setEditingBrand(brand);
     setFormData({
+      name: brand.name,
       description: brand.description || '',
-      status: brand.status
+      status: brand.status,
+      logo: null
     });
+    setPreview(brand.logo ? `http://localhost:5000${brand.logo}` : null);
     setShowModal(true);
   };
 
@@ -104,12 +119,12 @@ export default function AdminBrands() {
     <div className="bg-white shadow rounded-lg p-6 min-h-screen">
 
       {/* BACK BUTTON SECTION */}
-        <div className="mb-6">
-          <button onClick={() => navigate('/admin')} className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors" >
-            <FiArrowLeft size={20} />
+      <div className="mb-6">
+        <button onClick={() => navigate('/admin')} className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors" >
+          <FiArrowLeft size={20} />
           <span>Back to Dashboard</span>
-          </button>
-        </div>
+        </button>
+      </div>
 
       {/* Header with Search and Filter */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -155,6 +170,7 @@ export default function AdminBrands() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Logo</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -164,6 +180,15 @@ export default function AdminBrands() {
             {paginatedBrands.length > 0 ? (
               paginatedBrands.map((brand) => (
                 <tr key={brand._id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex-shrink-0 h-10 w-10 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 flex items-center justify-center">
+                      {brand.logo ? (
+                        <img className="h-full w-full object-contain" src={`http://localhost:5000${brand.logo}`} alt={brand.name} />
+                      ) : (
+                        <span className="text-[10px] text-gray-300 font-bold uppercase">No Logo</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-bold text-gray-900">{brand.name}</div>
                   </td>
@@ -253,6 +278,37 @@ export default function AdminBrands() {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Brand Logo</label>
+                <div className="flex items-center gap-4">
+                  <div className="h-16 w-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
+                    {preview ? (
+                      <img src={preview} alt="Preview" className="h-full w-full object-contain" />
+                    ) : (
+                      <FiUpload className="text-gray-300" size={20} />
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    id="logo-upload"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setFormData({ ...formData, logo: file });
+                        setPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor="logo-upload"
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 cursor-pointer transition-all"
+                  >
+                    Change Logo
+                  </label>
+                </div>
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={closeModal} className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>

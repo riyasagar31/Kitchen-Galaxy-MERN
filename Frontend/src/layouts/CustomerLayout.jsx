@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation, Link } from "react-router-dom";
-import { FiHome, FiShoppingBag, FiUser, FiLogOut, FiShoppingCart, FiMenu, FiChevronLeft } from "react-icons/fi";
+import { FiHome, FiGrid, FiShoppingBag, FiUser, FiLogOut, FiShoppingCart, FiMenu, FiChevronLeft } from "react-icons/fi";
 import { useCart } from "../context/CartContext.jsx"; // Access cart logic
 import { useAuth } from "../context/AuthContext.jsx"; // Access user logic
 
@@ -19,7 +19,7 @@ export default function CustomerLayout() {
   };
 
   const navLinks = [
-    { to: `/${role}/home`, label: "Home", icon: <FiHome /> },
+    { to: `/${role}/dashboard`, label: "Dashboard", icon: <FiGrid /> },
     { to: `/${role}/orders`, label: "My Orders", icon: <FiShoppingBag /> },
     { to: `/profile`, label: "Profile", icon: <FiUser /> },
     { to: `/${role}/cart`, label: "Cart", icon: <FiUser /> },
@@ -72,18 +72,12 @@ export default function CustomerLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
-        <div className="px-6 py-8">
-          {showWelcome && (
-            <div className="mb-6 text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <span className="text-[#ff5252]">🏠</span> Welcome to Kitchen Galaxy!
-            </div>
-          )}
-
+      <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
+        <div className="p-4 sm:p-8">
           {/* Main page content renders here */}
-          <div className="bg-white rounded-xl shadow-sm min-h-[calc(100vh-160px)] p-6">
+          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm min-h-[calc(100vh-120px)] p-6 sm:p-10">
             <Outlet />
-          </div>  
+          </div>
         </div>
       </main>
     </div>

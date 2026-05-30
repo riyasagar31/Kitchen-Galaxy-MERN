@@ -50,6 +50,13 @@ export const createMyProduct = async (req, res) => {
       finalBrandId = genericBrand._id;
     }
 
+    // Helper to determine GST rate
+    const getGstRate = async (catId) => {
+      const cat = await Category.findById(catId);
+      if (!cat) return 18;
+      return (cat.name === 'Kitchen Appliances' || cat.name === 'Home Appliances') ? 18 : 12;
+    };
+
     const productData = {
       name: name.trim(),
       price: Number(price),
@@ -58,6 +65,7 @@ export const createMyProduct = async (req, res) => {
       category: categoryId,
       brand: finalBrandId, // ✅ Use finalBrandId
       description,
+      gstRate: await getGstRate(categoryId), // Auto-assign GST
       images: req.file ? [`/uploads/${req.file.filename}`] : []
     };
 
@@ -84,7 +92,16 @@ export const updateMyProduct = async (req, res) => {
     if (stock !== undefined) product.stock = Number(stock);
     if (description !== undefined) product.description = description;
     if (brandId !== undefined) product.brand = brandId; // ✅ Update brand
-    if (categoryId !== undefined) product.category = categoryId;
+
+    if (categoryId !== undefined) {
+      product.category = categoryId;
+      // Update GST if category changed
+      const cat = await Category.findById(categoryId);
+      if (cat) {
+        product.gstRate = (cat.name === 'Kitchen Appliances' || cat.name === 'Home Appliances') ? 18 : 12;
+      }
+    }
+
     if (subCategoryId !== undefined) product.subCategory = subCategoryId || null;
 
     if (req.file) {

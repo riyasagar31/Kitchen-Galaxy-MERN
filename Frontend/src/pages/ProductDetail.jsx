@@ -6,7 +6,7 @@ import { useCart } from '../context/CartContext.jsx';
 import { FiShoppingCart, FiHeart, FiStar } from 'react-icons/fi';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import CartSidebar from '../components/CartSidebar';
+import { useCartSidebar } from '../context/CartSidebarContext.jsx';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -49,7 +49,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [related, setRelated] = useState([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { openSidebar } = useCartSidebar();
 
   // Reviews State
   const [reviews, setReviews] = useState([]);
@@ -67,6 +67,11 @@ export default function ProductDetail() {
       return;
     }
 
+    if (user.role !== 'customer') {
+      toast.error("Only customers can add items to cart");
+      return;
+    }
+
     try {
       if (actionType === 'cart' || actionType === 'buyNow') {
         await addToCart(product);
@@ -74,7 +79,7 @@ export default function ProductDetail() {
         if (actionType === 'buyNow') {
           navigate('/customer/cart');
         } else {
-          setIsSidebarOpen(true);
+          openSidebar();
         }
       }
     } catch (err) {
@@ -181,8 +186,7 @@ export default function ProductDetail() {
 
   return (
     <div className="bg-white min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-24 mt-4">
-        <CartSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24 mt-4">
 
         {/* Breadcrumb */}
         <div className="flex items-center text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-6">
@@ -239,12 +243,27 @@ export default function ProductDetail() {
               {product.description || "Crafted for excellence, this essential piece brings both style and superior functionality to your modern kitchen."}
             </p>
 
-            <div className="mb-8">
-              <div className="text-4xl font-bold text-gray-900 tracking-tight flex items-start">
-                <span className="text-xl mt-1 mr-1 text-[#ff5252]">₹</span>
-                {product.price.toLocaleString()}
+            <div className="mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Base Price</span>
+                  <div className="text-lg font-bold text-gray-600">₹{product.price.toLocaleString()}</div>
+                </div>
+                <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                  <span className="text-[10px] font-black text-[#ff5252] uppercase tracking-widest">GST ({product.gstRate || 18}%)</span>
+                  <div className="text-lg font-bold text-[#ff5252]">
+                    + ₹{((product.price * (product.gstRate || 18)) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Final Price</span>
+                  <div className="text-3xl font-black text-gray-900 tracking-tight flex items-start">
+                    <span className="text-sm mt-1 mr-1 text-[#ff5252]">₹</span>
+                    {(product.price + (product.price * (product.gstRate || 18)) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
               </div>
-              <p className="text-[10px] text-gray-400 font-bold mt-1">Inclusive of all taxes</p>
+              <p className="text-[9px] text-gray-400 font-bold mt-2 text-center uppercase tracking-widest">Pricing includes GST and all applicable taxes</p>
             </div>
 
             <div className="space-y-3 border-t border-gray-100 pt-6 mb-8">
@@ -284,6 +303,52 @@ export default function ProductDetail() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Related items */}
+        <div className="mt-20">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-2xl font-bold text-gray-900 tracking-tight">You May Also <span className="text-[#ff5252]">Like</span></h3>
+            <div className="h-[1px] flex-1 bg-gray-100 mx-6 hidden md:block"></div>
+          </div>
+
+          {related.length === 0 ? (
+            <div className="text-gray-400 font-bold py-10 text-center bg-gray-50 rounded-2xl text-sm">No related products found.</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {related.map((r) => (
+                <div
+                  key={r._id}
+                  className="group flex flex-col border border-gray-100 rounded-2xl overflow-hidden hover:shadow-lg transition-all"
+                >
+                  <div className="aspect-square bg-white overflow-hidden">
+                    <img
+                      src={`http://localhost:5000${r.images?.[0] || r.image}`}
+                      alt={r.name}
+                      className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform"
+                    />
+                  </div>
+                  <div className="px-3 pt-3 pb-4 flex flex-col flex-1">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-[8px] font-bold text-[#ff5252] uppercase tracking-widest">{r.brand?.name || 'Collection'}</span>
+                      <div className="flex items-center gap-0.5 text-yellow-400">
+                        <FiStar size={10} fill="currentColor" />
+                        <span className="text-[10px] font-bold text-gray-900">{Number(r.ratings || 0).toFixed(1)}</span>
+                      </div>
+                    </div>
+                    <h4 className="font-bold text-gray-900 text-sm line-clamp-1 group-hover:text-[#ff5252] transition-colors">{r.name}</h4>
+                    <div className="mt-1 text-base font-bold text-gray-900 mb-3">₹{r.price.toLocaleString()}</div>
+                    <button
+                      onClick={() => navigate(`/products/${r._id}`)}
+                      className="mt-auto w-full py-2 rounded-xl bg-[#ff5252] text-white font-bold text-[10px] uppercase tracking-widest hover:bg-red-600 active:scale-95 transition-all duration-200"
+                    >
+                      View Detail
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Reviews Section */}
@@ -353,47 +418,6 @@ export default function ProductDetail() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* Related items */}
-        <div className="mt-20">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 tracking-tight">You May Also <span className="text-[#ff5252]">Like</span></h3>
-            <div className="h-[1px] flex-1 bg-gray-100 mx-6 hidden md:block"></div>
-          </div>
-
-          {related.length === 0 ? (
-            <div className="text-gray-400 font-bold py-10 text-center bg-gray-50 rounded-2xl text-sm">No related products found.</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {related.map((r) => (
-                <Link
-                  key={r._id}
-                  to={`/products/${r._id}`}
-                  className="group flex flex-col"
-                >
-                  <div className="aspect-square bg-white border border-gray-100 rounded-2xl overflow-hidden mb-4 transition-all group-hover:shadow-lg">
-                    <img
-                      src={`http://localhost:5000${r.images?.[0] || r.image}`}
-                      alt={r.name}
-                      className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform"
-                    />
-                  </div>
-                  <div className="px-1">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-[8px] font-bold text-[#ff5252] uppercase tracking-widest">{r.brand?.name || 'Collection'}</span>
-                      <div className="flex items-center gap-0.5 text-yellow-400">
-                        <FiStar size={10} fill="currentColor" />
-                        <span className="text-[10px] font-bold text-gray-900">{Number(r.ratings || 0).toFixed(1)}</span>
-                      </div>
-                    </div>
-                    <h4 className="font-bold text-gray-900 text-sm line-clamp-1 group-hover:text-[#ff5252] transition-colors">{r.name}</h4>
-                    <div className="mt-1 text-base font-bold text-gray-900">₹{r.price.toLocaleString()}</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>

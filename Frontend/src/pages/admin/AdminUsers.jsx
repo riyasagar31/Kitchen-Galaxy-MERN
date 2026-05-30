@@ -1,5 +1,6 @@
 import React, { useEffect, useState, Fragment, useMemo } from 'react';
-import { FiEye, FiEdit2, FiTrash2, FiUserCheck, FiSlash, FiRotateCcw, FiArrowLeft, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiEye, FiEdit2, FiTrash2, FiUserCheck, FiSlash, FiRotateCcw, FiArrowLeft, FiSearch, FiChevronLeft, FiChevronRight, FiDownload } from 'react-icons/fi';
+import ExcelJS from 'exceljs';
 import http from '../../api/http.js';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -92,6 +93,47 @@ export default function AdminUsers() {
     } catch (err) { toast.error('Delete failed'); }
   };
 
+  const exportToExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Users Report');
+
+      worksheet.columns = [
+        { header: 'Name', key: 'name', width: 25 },
+        { header: 'Email', key: 'email', width: 30 },
+        { header: 'Role', key: 'role', width: 15 },
+        { header: 'Status', key: 'status', width: 12 },
+        { header: 'Joined Date', key: 'date', width: 15 }
+      ];
+
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
+
+      filteredUsers.forEach(u => {
+        worksheet.addRow({
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          status: u.status,
+          date: new Date(u.createdAt).toLocaleDateString()
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `users_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('Excel Report downloaded successfully!');
+    } catch (error) {
+      console.error('Export Error:', error);
+      toast.error('Failed to export to Excel');
+    }
+  };
+
   return (
     <div className="bg-white shadow rounded-lg p-6">
 
@@ -106,35 +148,44 @@ export default function AdminUsers() {
             </div>
 
       {/* Header with Search and Filter */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h3 className="text-xl font-bold text-gray-900">User Management</h3>
         
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search Bar */}
-          <div className="relative">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input 
-              type="text"
-              placeholder="Search by name..."
-              className="pl-10 pr-4 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+        <div className="flex flex-col items-end gap-2 w-full md:w-auto">
+          <button
+            onClick={exportToExcel}
+            className="flex items-center gap-2 border-2 border-[#ff5252] text-[#ff5252] px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-[#ff5252] hover:text-white transition-all shadow-sm active:scale-95 bg-white shrink-0 mb-1"
+          >
+            <FiDownload size={16} /> Excel Report
+          </button>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search Bar */}
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input 
+                type="text"
+                placeholder="Search by name..."
+                className="pl-10 pr-4 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
 
-          {/* Role Filter */}
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">Role:</label>
-            <select
-              className="block w-32 border border-gray-300 rounded-md shadow-sm py-1.5 px-2 text-sm focus:outline-none"
-              value={roleFilter}
-              onChange={e => setRoleFilter(e.target.value)}
-            >
-              <option value="">All Roles</option>
-              <option value="customer">Customer</option>
-              <option value="seller">Seller</option>
-              <option value="admin">Admin</option>
-            </select>
+            {/* Role Filter */}
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-gray-700"></label>
+              <select
+                className="block w-32 border border-gray-300 rounded-md shadow-sm py-1.5 px-2 text-sm focus:outline-none"
+                value={roleFilter}
+                onChange={e => setRoleFilter(e.target.value)}
+              >
+                <option value="">All Roles</option>
+                <option value="customer">Customer</option>
+                <option value="seller">Seller</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>

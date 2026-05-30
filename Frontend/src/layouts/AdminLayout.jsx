@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { FiLogOut, FiGrid, FiBox, FiUsers, FiShoppingBag, FiLayers, FiTruck, FiMenu, FiChevronLeft } from "react-icons/fi";
-import http from "../api/http"; 
+import http from "../api/http";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 
@@ -90,7 +90,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
+      <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
         <div className="px-6 py-8">
           {showWelcome && (
             <div className="mb-6 text-2xl font-bold text-gray-800 border-b pb-4">
